@@ -199,8 +199,21 @@ esac
 
 echo
 echo "== Done =="
-echo "Reboot to confirm everything comes up automatically:"
-echo "  sudo reboot"
-echo "Then check:"
-echo "  mount | grep /home"
-echo "  cat /etc/os-release"
+echo "Homebrew is installed and set up to survive reboots."
+echo
+
+printf "Reboot now to confirm everything comes up automatically? [y/N]: "
+read -r ans
+case "$ans" in
+  y|Y|yes|Yes)
+    echo "Rebooting..."
+    reboot
+    ;;
+  *)
+    echo "Skipped. Reboot whenever you're ready to verify:"
+    echo "  sudo reboot"
+    echo "Then check:"
+    echo "  mount | grep /home"
+    echo "  cat /etc/os-release"
+    ;;
+esac
