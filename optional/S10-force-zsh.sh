@@ -20,14 +20,14 @@ TARGET_SHELL="/bin/zsh"
 case "$1" in
   start)
     if [ ! -x "$TARGET_SHELL" ]; then
-      echo "S00-force-zsh: $TARGET_SHELL not found or not executable, skipping." >&2
+      echo "S10-force-zsh: $TARGET_SHELL not found or not executable, skipping." >&2
       exit 0
     fi
 
     CURRENT_SHELL=$(awk -F: -v u="$TARGET_USER" '$1==u{print $NF}' /etc/passwd)
 
     if [ -z "$CURRENT_SHELL" ]; then
-      echo "S00-force-zsh: user '$TARGET_USER' not found in /etc/passwd, skipping." >&2
+      echo "S10-force-zsh: user '$TARGET_USER' not found in /etc/passwd, skipping." >&2
       exit 0
     fi
 
