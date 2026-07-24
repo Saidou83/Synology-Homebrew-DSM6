@@ -4,8 +4,8 @@
 # Entry point for running this repo as a one-liner, the same way
 # Homebrew's own installer works:
 #
-#   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Saidou83/homebrew-synology-dsm6/master/bootstrap.sh)" -- --install
-#   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Saidou83/homebrew-synology-dsm6/master/bootstrap.sh)" -- --uninstall
+#   sudo /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Saidou83/homebrew-synology-dsm6/master/bootstrap.sh)" -- --install
+#   sudo /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Saidou83/homebrew-synology-dsm6/master/bootstrap.sh)" -- --uninstall
 #
 # Downloads a tarball of this repo into a temp directory and hands off
 # to install.sh or uninstall.sh. Requires curl and tar (both present on

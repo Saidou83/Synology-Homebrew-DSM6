@@ -67,7 +67,7 @@ No `git clone` needed — this downloads the repo to a temp directory and
 runs the installer, the same way Homebrew's own installer works.
 
 ```sh
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Saidou83/homebrew-synology-dsm6/master/bootstrap.sh)" -- --install
+sudo /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Saidou83/homebrew-synology-dsm6/master/bootstrap.sh)" -- --install
 ```
 
 Runs the core install (ldd shim → mount → Homebrew → boot-persistence
