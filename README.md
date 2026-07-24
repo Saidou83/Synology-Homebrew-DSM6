@@ -1,16 +1,20 @@
 # Homebrew on Synology DSM 6 — boot-persistent setup
 
-A collection of `/usr/local/etc/rc.d/` scripts to make a Homebrew install
-on DSM 6 (tested on DSM 6.2.4) survive reboots cleanly — no manual
-restarts, no fragile `sleep N` + Task Scheduler guesswork.
+Install Homebrew on DSM 6 (tested on DSM 6.2.4) in a way that survives
+reboots cleanly — no manual restarts, no fragile `sleep N` + Task
+Scheduler guesswork.
 
 This builds on the original trick for getting Homebrew running on DSM at
 all, credited below, and focuses on the part that trick doesn't cover:
-**keeping everything running correctly after a reboot.**
+**keeping the install working correctly after a reboot.**
 
 > **Note:** the popular [MrCee/Synology-Homebrew](https://github.com/MrCee/Synology-Homebrew)
 > automated installer is **DSM 7+ only**. If you're on DSM 6, that
 > installer won't work for you — this repo is for you.
+
+The goal here is Homebrew itself, working and boot-persistent. The zsh
+shell and Tailscale scripts included in `optional/` are unrelated
+extras from my own setup — feel free to ignore them entirely.
 
 ## Why this exists
 
@@ -26,42 +30,41 @@ the original Synology community forum thread (see [Credits](#credits)):
    `/home`, and a plain symlink isn't enough because Homebrew resolves
    real paths.
 
-Once Homebrew is installed, a few things don't survive a reboot unless
-you handle them explicitly:
+Neither of these survives a reboot on its own:
 
-- The bind mount at `/home` disappears.
-- Anything you started manually in a terminal session (like `tailscaled`)
-  dies when the session ends, unless properly daemonized.
-- DSM doesn't have `/etc/os-release`, which some tools expect.
-- A custom login shell (e.g. zsh from Homebrew) can get reset.
+- The bind mount at `/home` disappears, so Homebrew (and anything
+  installed through it) becomes unreachable at its expected path.
+- DSM doesn't have `/etc/os-release`, which some tools — including
+  Homebrew itself — expect and will warn about.
 
-**Task Scheduler's "boot-up" trigger is not reliable for this.** It
-fires early in boot, independent of whether volumes are actually
+**Task Scheduler's "boot-up" trigger is not a reliable fix for this.**
+It fires early in boot, independent of whether volumes are actually
 mounted yet — the common workaround is `sleep 300` or similar, which is
 a guess that breaks whenever boot time varies.
 
 **`/usr/local/etc/rc.d/` is the right hook point.** Scripts placed here
 are run by DSM's own init system, in filename-sorted order, only after
-volumes are mounted — no sleep/guessing required, and correct ordering
-between scripts is guaranteed by naming them `S00`, `S01`, `S02`, etc.
+volumes are mounted — no sleep/guessing required.
 
 ## What's in here
 
 | Script | Purpose |
 |---|---|
-| `install.sh` | One-liner installer that runs every step below, with prompts |
+| `install.sh` | Installer: runs the core steps below, then optionally offers the extras |
 | `setup/ldd-shim.sh` | One-time: create the fake `ldd` needed by Homebrew's installer |
-| `rc.d/S00-force-zsh.sh` | Boot: re-apply a custom login shell (e.g. Homebrew zsh) |
-| `rc.d/S00b-generate-os-release.sh` | Boot: generate `/etc/os-release` from DSM's own version file |
+| `rc.d/S00-generate-os-release.sh` | Boot: generate `/etc/os-release` from DSM's own version file |
 | `rc.d/S01-homebrew-mount.sh` | Boot: bind-mount your homes share to `/home` |
-| `rc.d/S02-tailscaled.sh` | Boot: start a Homebrew-installed `tailscaled` (example service; adapt for others) |
+| `optional/S10-force-zsh.sh` | *(optional, unrelated to Homebrew)* Boot: re-apply a custom login shell |
+| `optional/S11-tailscaled.sh` | *(optional, unrelated to Homebrew)* Boot: example of running a Homebrew-installed background service — uses Tailscale |
 
-## Installation
+## Installing Homebrew
 
 ### Option A: one-liner (recommended)
 
-Prompts you for your homes share path, username, Homebrew prefix, and
-whether to set up Tailscale, then does everything below in one go.
+Runs the core install (ldd shim → mount → Homebrew → boot-persistence
+scripts), then asks at the very end, separately, whether you also want
+the optional zsh/Tailscale extras. Answer "no" to both if you just want
+Homebrew.
 
 ```sh
 git clone https://github.com/<you>/synology-homebrew-dsm6.git
@@ -69,7 +72,7 @@ cd synology-homebrew-dsm6
 sudo sh install.sh
 ```
 
-It's safe to re-run if something goes wrong partway through.
+Safe to re-run if something goes wrong partway through.
 
 ### Option B: manual, step by step
 
@@ -98,11 +101,10 @@ sudo mount -o bind /volume1/homes /home
 
 When prompted for an install location, choose `/home/linuxbrew/.linuxbrew`.
 
-**4. Edit the rc.d scripts for your setup**
+**4. Edit `rc.d/S01-homebrew-mount.sh` for your setup**
 
-Each script in `rc.d/` has an "EDIT THIS" section near the top —
-username, volume path, Homebrew prefix, etc. Check each one before
-installing.
+It has an "EDIT THIS" section near the top for your homes share path.
+`S00-generate-os-release.sh` needs no editing.
 
 **5. Install the rc.d scripts**
 
@@ -114,14 +116,12 @@ sudo chmod +x /usr/local/etc/rc.d/*.sh
 **6. Test without rebooting**
 
 ```sh
-sudo /usr/local/etc/rc.d/S00-force-zsh.sh start
-sudo /usr/local/etc/rc.d/S00b-generate-os-release.sh start
+sudo /usr/local/etc/rc.d/S00-generate-os-release.sh start
 sudo /usr/local/etc/rc.d/S01-homebrew-mount.sh start
-sudo /usr/local/etc/rc.d/S02-tailscaled.sh start
 
 mount | grep /home
 cat /etc/os-release
-ps aux | grep tailscaled
+$(brew --prefix)/bin/brew --version   # or: /home/linuxbrew/.linuxbrew/bin/brew --version
 ```
 
 **7. Reboot and confirm**
@@ -134,19 +134,57 @@ After it comes back up:
 
 ```sh
 mount | grep /home
-ps aux | grep tailscaled
-echo $SHELL
+brew --version
 ```
 
-Everything should be up with zero manual steps.
+Homebrew should be fully usable with zero manual steps after reboot.
 
-## Adapting `S02-tailscaled.sh` for other services
+## Optional extras
 
-The Tailscale script is really just an example of "start a
-Homebrew-installed background service on boot." The same pattern (check
-binary exists → ensure state/socket dirs exist → launch with output
-redirected to a log file → background it) works for most other daemons
-you install via `brew`.
+These are **not required for Homebrew** — they're two unrelated
+conveniences from my own DS412 setup, included in case they're useful.
+Both live in `optional/` and are skipped by default.
+
+### `S10-force-zsh.sh` — persist a custom login shell
+
+DSM's Package Center / User settings UI doesn't let you set a user's
+login shell to a Homebrew-installed zsh, and DSM can reset shell
+settings under some conditions. This script re-applies your chosen
+shell on every boot.
+
+Requires `/bin/zsh` to exist (usually a symlink to the real binary —
+check with `ls -la /bin/zsh` and create it first if missing, e.g.
+`sudo ln -s /usr/local/bin/zsh /bin/zsh` or point it at your Homebrew
+zsh).
+
+Edit the `TARGET_USER` variable near the top, then:
+
+```sh
+sudo cp optional/S10-force-zsh.sh /usr/local/etc/rc.d/
+sudo chmod +x /usr/local/etc/rc.d/S10-force-zsh.sh
+sudo /usr/local/etc/rc.d/S10-force-zsh.sh start
+```
+
+### `S11-tailscaled.sh` — run a Homebrew-installed background service at boot
+
+An example of the general pattern for keeping any Homebrew-installed
+daemon running after a reboot (check binary exists → ensure state/
+socket dirs exist → launch with output redirected to a log file →
+background it). Uses Tailscale as the concrete example, but the same
+shape works for most other `brew`-installed services.
+
+Requires `brew install tailscale` first. Edit `BREW_PREFIX` near the
+top if it differs from the default, then:
+
+```sh
+sudo cp optional/S11-tailscaled.sh /usr/local/etc/rc.d/
+sudo chmod +x /usr/local/etc/rc.d/S11-tailscaled.sh
+sudo /usr/local/etc/rc.d/S11-tailscaled.sh start
+sudo /home/linuxbrew/.linuxbrew/bin/tailscale --socket=/var/run/tailscale/tailscaled.sock up
+```
+
+The `up` step only needs to be run once, to authenticate — after that,
+the daemon reconnects automatically from saved state on every boot.
 
 ## Credits
 
