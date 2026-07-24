@@ -24,8 +24,8 @@
 set -e
 
 # EDIT THIS after you push the repo to your own GitHub account/org.
-REPO_OWNER="<you>"
-REPO_NAME="synology-homebrew-dsm6"
+REPO_OWNER="Saidou83"
+REPO_NAME="homebrew-synology-dsm6"
 BRANCH="main"
 
 ACTION="install"

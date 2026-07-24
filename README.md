@@ -53,10 +53,6 @@ volumes are mounted — no sleep/guessing required.
 | `bootstrap.sh` | Entry point for the `curl \| bash` one-liner — downloads the repo and dispatches to install.sh/uninstall.sh |
 | `install.sh` | Installer: runs the core steps below, then optionally offers the extras |
 | `uninstall.sh` | Uninstaller: reverses everything, step by step, with a confirmation before each destructive action |
-
-> **Before publishing your own copy of this repo:** edit the
-> `REPO_OWNER` variable near the top of `bootstrap.sh` to match your
-> GitHub username, and update the two `curl` one-liners below to match.
 | `setup/ldd-shim.sh` | One-time: create the fake `ldd` needed by Homebrew's installer |
 | `rc.d/S00-generate-os-release.sh` | Boot: generate `/etc/os-release` from DSM's own version file |
 | `rc.d/S01-homebrew-mount.sh` | Boot: bind-mount your homes share to `/home` |
@@ -71,7 +67,7 @@ No `git clone` needed — this downloads the repo to a temp directory and
 runs the installer, the same way Homebrew's own installer works.
 
 ```sh
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/<you>/synology-homebrew-dsm6/main/bootstrap.sh)" -- --install
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Saidou83/homebrew-synology-dsm6/main/bootstrap.sh)" -- --install
 ```
 
 Runs the core install (ldd shim → mount → Homebrew → boot-persistence
@@ -82,8 +78,8 @@ Homebrew.
 ### Option B: clone first, then run locally
 
 ```sh
-git clone https://github.com/<you>/synology-homebrew-dsm6.git
-cd synology-homebrew-dsm6
+git clone https://github.com/Saidou83/homebrew-synology-dsm6.git
+cd homebrew-synology-dsm6
 sudo sh install.sh
 ```
 
@@ -210,7 +206,7 @@ the daemon reconnects automatically from saved state on every boot.
 One-liner (no clone needed):
 
 ```sh
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/<you>/synology-homebrew-dsm6/main/bootstrap.sh)" -- --uninstall
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Saidou83/homebrew-synology-dsm6/main/bootstrap.sh)" -- --uninstall
 ```
 
 Or, from a local clone:
