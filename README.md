@@ -154,6 +154,19 @@ brew --version
 
 Homebrew should be fully usable with zero manual steps after reboot.
 
+## Re-running / idempotency
+
+Both `install.sh` and every rc.d script are safe to run more than once:
+
+- The `/home` mount, Homebrew install check, and Tailscale daemon start
+  all check current state first and skip if already done.
+- The `ldd` shim, `/etc/os-release`, and the rc.d script files
+  themselves are simply overwritten with the same content each time —
+  harmless, but note this means **manual edits made directly to the
+  installed copies in `/usr/local/etc/rc.d/` will be overwritten** if
+  you re-run `install.sh`. Edit the source scripts in this repo instead,
+  then re-run.
+
 ## Optional extras
 
 These are **not required for Homebrew** — they're two unrelated
@@ -188,18 +201,26 @@ socket dirs exist → launch with output redirected to a log file →
 background it). Uses Tailscale as the concrete example, but the same
 shape works for most other `brew`-installed services.
 
-Requires `brew install tailscale` first. Edit `BREW_PREFIX` near the
-top if it differs from the default, then:
+If you opt into this via `install.sh`, it will run `brew install
+tailscale` automatically if it isn't already installed, install and
+start `S11-tailscaled.sh`, and run `tailscale up` once for you
+(you'll be shown an auth URL to visit if this device isn't already on
+your tailnet). Nothing further to do afterwards — the daemon
+reconnects automatically from saved state on every boot.
+
+If installing manually (Option C, or if you skipped this during
+`install.sh` and want to add it later):
 
 ```sh
+sudo -u <your-user> /home/linuxbrew/.linuxbrew/bin/brew install tailscale
 sudo cp optional/S11-tailscaled.sh /usr/local/etc/rc.d/
 sudo chmod +x /usr/local/etc/rc.d/S11-tailscaled.sh
 sudo /usr/local/etc/rc.d/S11-tailscaled.sh start
 sudo /home/linuxbrew/.linuxbrew/bin/tailscale --socket=/var/run/tailscale/tailscaled.sock up
 ```
 
-The `up` step only needs to be run once, to authenticate — after that,
-the daemon reconnects automatically from saved state on every boot.
+(Homebrew refuses to run as root — install the formula as your normal
+user, not via `sudo brew ...` directly.)
 
 ## Uninstalling
 

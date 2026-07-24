@@ -152,18 +152,47 @@ case "$ans" in
 esac
 
 echo
-printf "Run a Homebrew-installed tailscaled at boot (brew install tailscale)? [y/N]: "
+printf "Set up Tailscale, installed via Homebrew, to run at boot? [y/N]: "
 read -r ans
 case "$ans" in
   y|Y|yes|Yes)
-    sed -e "s|^BREW_PREFIX=.*|BREW_PREFIX=\"$BREW_PREFIX\"|" \
-      "$SCRIPT_DIR/optional/S11-tailscaled.sh" > /usr/local/etc/rc.d/S11-tailscaled.sh
-    chmod +x /usr/local/etc/rc.d/S11-tailscaled.sh
-    echo "Installed S11-tailscaled.sh"
-    echo "Remember: run '$BREW_PREFIX/bin/brew install tailscale' if you"
-    echo "haven't already, then run it once now to authenticate:"
-    echo "  sh /usr/local/etc/rc.d/S11-tailscaled.sh start"
-    echo "  sudo $BREW_PREFIX/bin/tailscale --socket=/var/run/tailscale/tailscaled.sock up"
+    BREW_BIN="$BREW_PREFIX/bin/brew"
+    TAILSCALED_BIN="$BREW_PREFIX/bin/tailscaled"
+    TAILSCALE_BIN="$BREW_PREFIX/bin/tailscale"
+    SOCKET="/var/run/tailscale/tailscaled.sock"
+
+    if [ ! -x "$BREW_BIN" ]; then
+      echo "S11-tailscaled: $BREW_BIN not found, can't install tailscale. Skipping." >&2
+    else
+      # Homebrew refuses to run as root, so run it as the user who owns
+      # the Homebrew prefix (falling back to $SUDO_USER, then whoever
+      # invoked sudo).
+      BREW_OWNER=$(stat -c '%U' "$BREW_PREFIX" 2>/dev/null || echo "${SUDO_USER:-root}")
+
+      if [ -x "$TAILSCALED_BIN" ]; then
+        echo "tailscale already installed via Homebrew, skipping 'brew install'."
+      else
+        echo "Installing tailscale via Homebrew (as user: $BREW_OWNER)..."
+        sudo -u "$BREW_OWNER" "$BREW_BIN" install tailscale
+      fi
+    fi
+
+    if [ -x "$TAILSCALED_BIN" ]; then
+      sed -e "s|^BREW_PREFIX=.*|BREW_PREFIX=\"$BREW_PREFIX\"|" \
+        "$SCRIPT_DIR/optional/S11-tailscaled.sh" > /usr/local/etc/rc.d/S11-tailscaled.sh
+      chmod +x /usr/local/etc/rc.d/S11-tailscaled.sh
+      echo "Installed S11-tailscaled.sh"
+
+      echo "Starting tailscaled..."
+      sh /usr/local/etc/rc.d/S11-tailscaled.sh start
+      sleep 2
+
+      echo "Running 'tailscale up' (you may be asked to visit an auth URL)..."
+      "$TAILSCALE_BIN" --socket="$SOCKET" up || true
+    else
+      echo "tailscaled binary still not found after install attempt — skipping" >&2
+      echo "daemon start. Check the brew install output above." >&2
+    fi
     ;;
 esac
 

@@ -31,7 +31,12 @@ LOG_FILE="/var/log/tailscaled.log"
 case "$1" in
   start)
     if [ ! -x "$TAILSCALED_BIN" ]; then
-      echo "S02-tailscaled: $TAILSCALED_BIN not found, skipping." >&2
+      echo "S11-tailscaled: $TAILSCALED_BIN not found, skipping." >&2
+      exit 0
+    fi
+
+    if pgrep -f "$TAILSCALED_BIN" > /dev/null 2>&1; then
+      echo "S11-tailscaled: already running, skipping."
       exit 0
     fi
 
