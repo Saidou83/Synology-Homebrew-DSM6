@@ -259,7 +259,3 @@ mounted again.
   https://community.synology.com/enu/forum/1/post/153781
 - For DSM 7+, see the fully automated installer:
   https://github.com/MrCee/Synology-Homebrew
-
-## License
-
-MIT — see [LICENSE](LICENSE).
