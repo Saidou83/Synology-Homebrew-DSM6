@@ -4,8 +4,8 @@
 # Entry point for running this repo as a one-liner, the same way
 # Homebrew's own installer works:
 #
-#   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/<you>/synology-homebrew-dsm6/main/bootstrap.sh)" -- --install
-#   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/<you>/synology-homebrew-dsm6/main/bootstrap.sh)" -- --uninstall
+#   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Saidou83/homebrew-synology-dsm6/master/bootstrap.sh)" -- --install
+#   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Saidou83/homebrew-synology-dsm6/master/bootstrap.sh)" -- --uninstall
 #
 # Downloads a tarball of this repo into a temp directory and hands off
 # to install.sh or uninstall.sh. Requires curl and tar (both present on
@@ -14,7 +14,7 @@
 # Options:
 #   --install     Run install.sh (default if no option given)
 #   --uninstall   Run uninstall.sh
-#   --branch=X    Use a specific branch/tag instead of "main"
+#   --branch=X    Use a specific branch/tag instead of the default
 #   --keep        Don't delete the downloaded copy afterwards
 #   -h, --help    Show this help
 #
@@ -26,7 +26,7 @@ set -e
 # EDIT THIS after you push the repo to your own GitHub account/org.
 REPO_OWNER="Saidou83"
 REPO_NAME="homebrew-synology-dsm6"
-BRANCH="main"
+BRANCH="master"
 
 ACTION="install"
 KEEP=0
