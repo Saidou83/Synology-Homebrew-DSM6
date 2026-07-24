@@ -227,7 +227,7 @@ user, not via `sudo brew ...` directly.)
 One-liner (no clone needed):
 
 ```sh
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Saidou83/homebrew-synology-dsm6/master/bootstrap.sh)" -- --uninstall
+sudo /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Saidou83/homebrew-synology-dsm6/master/bootstrap.sh)" -- --uninstall
 ```
 
 Or, from a local clone:
