@@ -21,7 +21,7 @@
 # You can also run this script directly if you've already cloned the
 # repo -- it will just use the local copy instead of downloading.
 
-set -e
+set -eu
 
 # EDIT THIS after you push the repo to your own GitHub account/org.
 REPO_OWNER="Saidou83"

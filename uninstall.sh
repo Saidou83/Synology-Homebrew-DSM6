@@ -16,7 +16,7 @@
 # Usage:
 #   sudo sh uninstall.sh
 
-set -e
+set -eu
 
 if [ "$(id -u)" -ne 0 ]; then
   echo "This script must be run as root (sudo sh uninstall.sh)." >&2
@@ -72,9 +72,10 @@ if [ -f "$RC_D/S10-force-zsh.sh" ]; then
     echo "Removed."
     if [ -n "$TARGET_USER_GUESS" ]; then
       if confirm "Also revert ${TARGET_USER_GUESS}'s login shell right now (to /bin/sh)?"; then
-        CURRENT_SHELL=$(awk -F: -v u="$TARGET_USER_GUESS" '$1==u{print $NF}' /etc/passwd)
+        CURRENT_SHELL=$(awk -F: -v u="$TARGET_USER_GUESS" '$1==u{print $NF; exit}' /etc/passwd)
         if [ -n "$CURRENT_SHELL" ]; then
-          sed -i.bak "$(awk -F: -v u="$TARGET_USER_GUESS" '$1==u{print NR}' /etc/passwd)s|${CURRENT_SHELL}|/bin/sh|" /etc/passwd
+          cp /etc/passwd /etc/passwd.bak
+          awk -F: -v u="$TARGET_USER_GUESS" 'BEGIN{OFS=":"} $1==u{$NF="/bin/sh"} {print}' /etc/passwd.bak > /etc/passwd
           echo "Reverted ${TARGET_USER_GUESS}'s shell to /bin/sh."
         fi
       fi

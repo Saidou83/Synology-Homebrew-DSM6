@@ -48,7 +48,7 @@ case "$1" in
       exit 0
     fi
 
-    CURRENT_SHELL=$(awk -F: -v u="$TARGET_USER" '$1==u{print $NF}' /etc/passwd)
+    CURRENT_SHELL=$(awk -F: -v u="$TARGET_USER" '$1==u{print $NF; exit}' /etc/passwd)
 
     if [ -z "$CURRENT_SHELL" ]; then
       echo "S10-force-zsh: user '$TARGET_USER' not found in /etc/passwd, skipping." >&2
@@ -56,7 +56,9 @@ case "$1" in
     fi
 
     if [ "$CURRENT_SHELL" != "$TARGET_SHELL" ]; then
-      sed -i.bak "$(awk -F: -v u="$TARGET_USER" '$1==u{print NR}' /etc/passwd)s|${CURRENT_SHELL}|${TARGET_SHELL}|" /etc/passwd
+      cp /etc/passwd /etc/passwd.bak
+      awk -F: -v u="$TARGET_USER" -v shell="$TARGET_SHELL" \
+        'BEGIN{OFS=":"} $1==u{$NF=shell} {print}' /etc/passwd.bak > /etc/passwd
     fi
     ;;
   stop)

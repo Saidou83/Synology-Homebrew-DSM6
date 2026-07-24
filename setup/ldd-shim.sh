@@ -16,7 +16,7 @@
 # Usage:
 #   sudo sh setup/ldd-shim.sh
 
-set -e
+set -eu
 
 if [ "$(id -u)" -ne 0 ]; then
   echo "This script must be run as root (sudo)." >&2

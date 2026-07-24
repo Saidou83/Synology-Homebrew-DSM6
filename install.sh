@@ -19,7 +19,7 @@
 # Usage:
 #   sudo sh install.sh
 
-set -e
+set -eu
 
 if [ "$(id -u)" -ne 0 ]; then
   echo "This script must be run as root (sudo sh install.sh)." >&2
@@ -27,6 +27,23 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# Copies $3 to $4, replacing the "$1=..." line with $1='<$2, single-quoted>'.
+# Single-quoting (with embedded quotes escaped) means whatever the user typed
+# for $2 -- including $(...), backticks, or spaces -- stays inert literal text
+# when the generated rc.d script is later run by the shell, instead of being
+# re-evaluated as shell syntax.
+install_with_var() {
+  awk -v var="$1" -v val="$2" '
+    BEGIN {
+      q = sprintf("%c", 39)
+      gsub(q, q "\\" q q, val)
+      line = var "=" q val q
+    }
+    index($0, var "=") == 1 { print line; next }
+    { print }
+  ' "$3" > "$4"
+}
 
 echo "== Homebrew on DSM 6 — installer =="
 echo
@@ -103,8 +120,8 @@ cp "$SCRIPT_DIR/rc.d/S00-generate-os-release.sh" /usr/local/etc/rc.d/
 chmod +x /usr/local/etc/rc.d/S00-generate-os-release.sh
 echo "Installed S00-generate-os-release.sh"
 
-sed -e "s|^SOURCE_DIR=.*|SOURCE_DIR=\"$SOURCE_DIR\"|" \
-  "$SCRIPT_DIR/rc.d/S01-homebrew-mount.sh" > /usr/local/etc/rc.d/S01-homebrew-mount.sh
+install_with_var SOURCE_DIR "$SOURCE_DIR" \
+  "$SCRIPT_DIR/rc.d/S01-homebrew-mount.sh" /usr/local/etc/rc.d/S01-homebrew-mount.sh
 chmod +x /usr/local/etc/rc.d/S01-homebrew-mount.sh
 echo "Installed S01-homebrew-mount.sh"
 
@@ -138,8 +155,8 @@ case "$ans" in
     TARGET_USER="${TARGET_USER:-$CURRENT_USER}"
 
     if [ -n "$TARGET_USER" ]; then
-      sed -e "s|^TARGET_USER=.*|TARGET_USER=\"$TARGET_USER\"|" \
-        "$SCRIPT_DIR/optional/S10-force-zsh.sh" > /usr/local/etc/rc.d/S10-force-zsh.sh
+      install_with_var TARGET_USER "$TARGET_USER" \
+        "$SCRIPT_DIR/optional/S10-force-zsh.sh" /usr/local/etc/rc.d/S10-force-zsh.sh
       chmod +x /usr/local/etc/rc.d/S10-force-zsh.sh
       echo "Installed S10-force-zsh.sh"
       echo "Note: this assumes /bin/zsh exists (often a symlink to your"
@@ -179,8 +196,8 @@ case "$ans" in
     fi
 
     if [ -x "$TAILSCALED_BIN" ]; then
-      sed -e "s|^BREW_PREFIX=.*|BREW_PREFIX=\"$BREW_PREFIX\"|" \
-        "$SCRIPT_DIR/optional/S11-tailscaled.sh" > /usr/local/etc/rc.d/S11-tailscaled.sh
+      install_with_var BREW_PREFIX "$BREW_PREFIX" \
+        "$SCRIPT_DIR/optional/S11-tailscaled.sh" /usr/local/etc/rc.d/S11-tailscaled.sh
       chmod +x /usr/local/etc/rc.d/S11-tailscaled.sh
       echo "Installed S11-tailscaled.sh"
 
