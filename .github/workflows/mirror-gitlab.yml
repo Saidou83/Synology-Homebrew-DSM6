@@ -1,0 +1,31 @@
+name: Mirror to GitLab
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch: {}
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure deploy key
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          echo "$GITLAB_MIRROR_SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          # Pinned host key for gitlab.niang.be:2323 -- public info, not a secret.
+          echo "[gitlab.niang.be]:2323 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBZb95BsybWbkpdtNb+w6U9Jbg4BD25Scym/D7fQ+QUn" > ~/.ssh/known_hosts
+        env:
+          GITLAB_MIRROR_SSH_KEY: ${{ secrets.GITLAB_MIRROR_SSH_KEY }}
+
+      - name: Push master to GitLab (fast-forward only)
+        run: |
+          git remote add gitlab ssh://git@gitlab.niang.be:2323/coding/Synology-Homebrew-DSM6.git
+          git push gitlab HEAD:refs/heads/master
