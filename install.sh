@@ -49,10 +49,11 @@ echo
 echo "Summary:"
 echo "  Homes share:     $SOURCE_DIR"
 echo "  Homebrew prefix: $BREW_PREFIX"
-printf "Continue? [Y/n]: "
+printf "Continue? [y/N]: "
 read -r ans
 case "$ans" in
-  n|N|no|No) echo "Aborted."; exit 0 ;;
+  y|Y|yes|Yes) ;;
+  *) echo "Aborted."; exit 0 ;;
 esac
 
 # ---------------------------------------------------------------------
