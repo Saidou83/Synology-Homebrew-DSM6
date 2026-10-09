@@ -197,9 +197,10 @@ sudo /usr/local/etc/rc.d/S10-force-zsh.sh start
 
 An example of the general pattern for keeping any Homebrew-installed
 daemon running after a reboot (check binary exists → ensure state/
-socket dirs exist → launch with output redirected to a log file →
-background it). Uses Tailscale as the concrete example, but the same
-shape works for most other `brew`-installed services.
+socket dirs exist → launch detached from any terminal, with output
+appended to a size-capped log file → background it). Uses Tailscale as
+the concrete example, but the same shape works for most other
+`brew`-installed services.
 
 If you opt into this via `install.sh`, it will run `brew install
 tailscale` automatically if it isn't already installed, install and
@@ -221,6 +222,62 @@ sudo /home/linuxbrew/.linuxbrew/bin/tailscale --socket=/var/run/tailscale/tailsc
 
 (Homebrew refuses to run as root — install the formula as your normal
 user, not via `sudo brew ...` directly.)
+
+#### Managing the daemon
+
+The script takes `start`, `stop` and `restart`:
+
+```sh
+sudo /usr/local/etc/rc.d/S11-tailscaled.sh restart
+```
+
+- `start` does nothing if the daemon is already running. It launches
+  `tailscaled` under `setsid` (from Homebrew's util-linux, falling back
+  to `nohup`), so a manual start over SSH survives logging out.
+- `stop` waits up to 15 seconds for a clean exit, then force-kills.
+  This is why `restart` is safe: the old process is gone before the new
+  one starts.
+- If you're connected over Tailscale itself, run `restart` from a LAN
+  SSH session instead. `stop` drops your own connection halfway through.
+- To just disconnect from the tailnet, use `tailscale down`. The daemon
+  keeps running.
+
+#### Logs
+
+Output goes to `/var/log/tailscaled.log` and is appended across
+restarts, so whatever a daemon printed before it died is still there.
+Each `start` and `stop` adds a timestamped `S11-tailscaled:` line, which
+shows when (and how often) the daemon had to be revived.
+
+The script rotates the log itself on `start`: past ~5 MB
+(`LOG_MAX_KB`) it copies it to `tailscaled.log.1` and truncates it in
+place. Rotation matters because `tailscaled` logs a lot of route-change
+noise (several MB a day), and `/var/log` sits on DSM's small system
+partition.
+
+Don't add a logrotate rule that signals the daemon. `tailscaled` exits
+on `SIGHUP` instead of reopening its log, so a `postrotate` like
+`pkill -SIGHUP tailscaled` silently takes Tailscale down on every
+rotation. If you want logrotate as well, use `copytruncate` with no
+`postrotate`.
+
+#### Optional: watchdog
+
+rc.d only starts the daemon at boot. If it ever exits, nothing restarts
+it. To have it come back on its own, add a scheduled task in
+**Control Panel → Task Scheduler → Create → Scheduled Task →
+User-defined script**:
+
+- **User:** `root`
+- **Schedule:** daily, every 5 minutes, first run 00:00, last run 23:55
+- **Run command:** `sh /usr/local/etc/rc.d/S11-tailscaled.sh start`
+
+`start` is a no-op while the daemon is running, and it also handles the
+log rotation. This is a time-based trigger, not the boot-up one, so the
+volume-mount timing problem doesn't apply: before `/home` is mounted,
+the script just finds no binary and exits. Note that the watchdog also
+restarts the daemon within 5 minutes of a manual `stop`. Disable the
+task first if you want it to stay down.
 
 ## Uninstalling
 
