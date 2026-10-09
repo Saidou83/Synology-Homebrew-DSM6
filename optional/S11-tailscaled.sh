@@ -23,10 +23,25 @@
 # EDIT THIS if your Homebrew prefix differs from the default.
 BREW_PREFIX="/home/linuxbrew/.linuxbrew"
 TAILSCALED_BIN="${BREW_PREFIX}/bin/tailscaled"
+SETSID_BIN="${BREW_PREFIX}/bin/setsid"
 STATE_DIR="${BREW_PREFIX}/var/tailscale"
 STATE_FILE="${STATE_DIR}/tailscaled.state"
 SOCKET="/var/run/tailscale/tailscaled.sock"
 LOG_FILE="/var/log/tailscaled.log"
+LOG_MAX_KB=5120   # rotate at ~5 MB; keeps one old copy (.1)
+
+log() {
+  echo "$(date '+%Y/%m/%d %H:%M:%S') S11-tailscaled: $*" >> "$LOG_FILE"
+}
+
+# copy+truncate (not mv): the daemon keeps its fd open, and since the
+# file is opened with >> (O_APPEND), truncating it in place is safe.
+rotate_log() {
+  [ -f "$LOG_FILE" ] || return 0
+  if [ "$(du -k "$LOG_FILE" | cut -f1)" -gt "$LOG_MAX_KB" ]; then
+    cp "$LOG_FILE" "${LOG_FILE}.1" && : > "$LOG_FILE"
+  fi
+}
 
 case "$1" in
   start)
@@ -34,6 +49,8 @@ case "$1" in
       echo "S11-tailscaled: $TAILSCALED_BIN not found, skipping." >&2
       exit 0
     fi
+
+    rotate_log
 
     if pgrep -f "$TAILSCALED_BIN" > /dev/null 2>&1; then
       echo "S11-tailscaled: already running, skipping."
@@ -43,16 +60,39 @@ case "$1" in
     mkdir -p "$(dirname "$SOCKET")"
     mkdir -p "$STATE_DIR"
 
-    "$TAILSCALED_BIN" \
+    # Detach from any controlling terminal so a manual start over SSH
+    # survives logout (SIGHUP). setsid comes from Homebrew's util-linux.
+    if [ -x "$SETSID_BIN" ]; then DETACH="$SETSID_BIN"; else DETACH="nohup"; fi
+
+    log "tailscaled not running, starting it"
+    $DETACH "$TAILSCALED_BIN" \
       --state="$STATE_FILE" \
       --socket="$SOCKET" \
-      > "$LOG_FILE" 2>&1 &
+      < /dev/null >> "$LOG_FILE" 2>&1 &
     ;;
   stop)
-    pkill -f "$TAILSCALED_BIN" 2>/dev/null || true
+    pgrep -f "$TAILSCALED_BIN" > /dev/null 2>&1 || exit 0
+    log "stopping tailscaled"
+    pkill -f "$TAILSCALED_BIN" 2>/dev/null
+    # Wait for a clean exit (it tears down routes/iptables), max 15s.
+    i=0
+    while pgrep -f "$TAILSCALED_BIN" > /dev/null 2>&1; do
+      i=$((i + 1))
+      if [ "$i" -ge 15 ]; then
+        log "still running after 15s, sending SIGKILL"
+        pkill -9 -f "$TAILSCALED_BIN" 2>/dev/null
+        sleep 1
+        break
+      fi
+      sleep 1
+    done
+    ;;
+  restart)
+    sh "$0" stop
+    sh "$0" start
     ;;
   *)
-    echo "Usage: $0 {start|stop}" >&2
+    echo "Usage: $0 {start|stop|restart}" >&2
     exit 1
     ;;
 esac
